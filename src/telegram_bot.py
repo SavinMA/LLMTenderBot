@@ -9,8 +9,9 @@ from pydantic import BaseModel, Field
 import tempfile
 import pathlib
 from config import BotConfig
-from local_LLM_analyzer import LocalLLMAnalyzer
+from mistral_analyzer import MistralAnalyzer
 from loguru import logger
+import telegramify_markdown
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,7 +37,7 @@ class TelegramBot:
     def __init__(self):
         self.config = BotConfig()
         self.user_sessions: defaultdict[int, UserSession] = defaultdict(UserSession)
-        self.analyzer = LocalLLMAnalyzer()
+        self.analyzer = MistralAnalyzer()
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Отправляет приветственное сообщение при вызове команды /start."""
@@ -80,7 +81,11 @@ class TelegramBot:
         
         if files_to_summarize:
             summary = await self.summarize_files(files_to_summarize, context)
-            await context.bot.send_message(chat_id=chat_id, text=f"Готово!\n\n{summary}", parse_mode="MarkdownV2")
+            if summary:
+                escaped_text = telegramify_markdown.markdownify(summary)
+                await context.bot.send_message(chat_id=chat_id, text=escaped_text, parse_mode="MarkdownV2")
+            else:
+                await context.bot.send_message(chat_id=chat_id, text="Не удалось обработать документ. Пожалуйста, попробуйте еще раз.")
         
         # Clear the timer for this media group for this user
         if media_group_id in user_session.media_group_timers:
@@ -126,7 +131,11 @@ class TelegramBot:
                 logger.info(f"Получен одиночный документ: {file_name} (ID: {file_id}), Пользователь: {user_id}")
                 await update.message.reply_text(f"Обрабатываю ваш документ: {file_name}...")
                 summary = await self.summarize_files([doc_info], context)
-                await update.message.reply_text(f"Краткое содержание для {file_name}:\n\n{summary}")
+                if summary:
+                    escaped_text = telegramify_markdown.markdownify(summary)
+                    await context.bot.send_message(chat_id=chat_id, text=escaped_text, parse_mode="MarkdownV2")
+                else:
+                    await update.message.reply_text("Не удалось обработать документ. Пожалуйста, попробуйте еще раз.")
         else:
             await update.message.reply_text("Я обрабатываю только документы. Пожалуйста, отправьте мне файл!")
 

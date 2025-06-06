@@ -8,7 +8,7 @@ class BotConfig(BaseSettings):
 class LLMConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', env_prefix='LLM_', extra='ignore')
     model: str
-    host: str
+    api_key: str
     log_level: str = "INFO"
 
 class MistralOCRConfig(BaseSettings):
