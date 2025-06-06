@@ -8,6 +8,7 @@ import asyncio
 from pydantic import BaseModel, Field
 import tempfile
 import pathlib
+import shutil
 from config import BotConfig, AnalyzerConfig
 from documents_analyzer import DocumentsAnalyzer
 from mistral_analyzer import MistralAnalyzer
@@ -54,32 +55,47 @@ class TelegramBot:
     async def summarize_files(self, file_info_list: list[DocumentInfo], context: ContextTypes.DEFAULT_TYPE) -> str:
         """Заглушка для суммаризации нескольких документов. Будет заменена на реальную суммаризацию."""
         downloaded_file_paths = []
-        for doc_info in file_info_list:
-            try:
-                file_object = await context.bot.get_file(doc_info.file_id)
-                with tempfile.TemporaryDirectory(delete=False) as tmpdir:
+        temp_dirs = [] # Keep track of temporary directories
+        result_summary = ""
+
+        try:
+            for doc_info in file_info_list:
+                try:
+                    file_object = await context.bot.get_file(doc_info.file_id)
+                    # Create a temporary directory that won't be automatically deleted
+                    tmpdir = tempfile.mkdtemp()
+                    temp_dirs.append(tmpdir)
                     temp_file_path = pathlib.Path(tmpdir) / doc_info.file_name
                     await file_object.download_to_drive(custom_path=temp_file_path)
                     logger.info(f"Downloaded file {doc_info.file_name} to {temp_file_path}")
                     downloaded_file_paths.append(str(temp_file_path))
-            except Exception as e:
-                logger.error(f"Error downloading file {doc_info.file_name} (ID: {doc_info.file_id}): {e}")
-                # Если файл не скачался, добавляем его в список ошибок и продолжаем
-                pass 
-        
-        if downloaded_file_paths:
-            analyze_result = self.analyzer.analyze(downloaded_file_paths)
-            if analyze_result.file_errors:
-                if analyze_result.summary:
-                    error_files_str = ", ".join(analyze_result.file_errors)
-                    return f"Частичная суммаризация. Ошибки при обработке файлов: {error_files_str}.\n\n{analyze_result.summary}"
+                except Exception as e:
+                    logger.error(f"Error downloading file {doc_info.file_name} (ID: {doc_info.file_id}): {e}")
+                    # Если файл не скачался, добавляем его в список ошибок и продолжаем
+                    pass
+
+            if downloaded_file_paths:
+                analyze_result = self.analyzer.analyze(downloaded_file_paths)
+                if analyze_result.file_errors:
+                    if analyze_result.summary:
+                        error_files_str = ", ".join(analyze_result.file_errors)
+                        result_summary = f"Частичная суммаризация. Ошибки при обработке файлов: {error_files_str}.\n\n{analyze_result.summary}"
+                    else:
+                        error_files_str = ", ".join(analyze_result.file_errors)
+                        result_summary = f"Ошибки при обработке файлов: {error_files_str}."
                 else:
-                    error_files_str = ", ".join(analyze_result.file_errors)
-                    return f"Ошибки при обработке файлов: {error_files_str}."
+                    result_summary = analyze_result.summary
             else:
-                return analyze_result.summary
-        else:
-            return "Не удалось скачать ни один файл для суммаризации."
+                result_summary = "Не удалось скачать ни один файл для суммаризации."
+        finally:
+            # Clean up all created temporary directories
+            for tmpdir in temp_dirs:
+                try:
+                    shutil.rmtree(tmpdir)
+                    logger.info(f"Cleaned up temporary directory: {tmpdir}")
+                except OSError as e:
+                    logger.error(f"Error removing temporary directory {tmpdir}: {e}")
+        return result_summary
 
     async def process_media_group(self, context: ContextTypes.DEFAULT_TYPE, user_id: int, media_group_id: str, chat_id: int) -> None:
         """Обрабатывает медиа-группу после получения всех документов для конкретного пользователя."""
