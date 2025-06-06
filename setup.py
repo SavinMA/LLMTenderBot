@@ -8,10 +8,10 @@ setup(
     install_requires=[
         # List your project dependencies here, e.g.,
         # 'requests==2.28.1',
-        'python-telegram-bot==20.3',
+        'python-telegram-bot==22.1',
         'python-dotenv==1.1.0',
-        'pydantic==2.7.1',
-        'pydantic-settings==2.0.2'
+        'pydantic==2.10.3',
+        'pydantic-settings==2.3.0'
     ],
     entry_points={
         'console_scripts': [

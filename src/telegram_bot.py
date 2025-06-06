@@ -1,28 +1,23 @@
 import os
+import sys
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import logging
 from collections import defaultdict
 import asyncio
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
 import tempfile
 import pathlib
+from config import BotConfig
+from local_LLM_analyzer import LocalLLMAnalyzer
+from loguru import logger
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Enable logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-
-class BotConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
-    bot_token: str
+# Configure Loguru
+logger.add("logs/bot.log", rotation="500 MB", compression="zip", level="INFO")
+logger.add("logs/bot_debug.log", level="DEBUG")
 
 class DocumentInfo(BaseModel):
     file_id: str
@@ -35,13 +30,13 @@ class UserSession(BaseModel):
     # Key: media_group_id, Value: asyncio.Task
     # Note: asyncio.Task cannot be directly serialized by Pydantic. 
     # We'll manage this outside of direct Pydantic validation if strict serialization is needed.
-    media_group_timers: dict[str, asyncio.Task] = Field(default_factory=dict)
+    media_group_timers: dict[str, any] = Field(default_factory=dict)
 
 class TelegramBot:
-    def __init__(self, config: BotConfig):
-        self.config = config
-        # Key: user_id, Value: UserSession
+    def __init__(self):
+        self.config = BotConfig()
         self.user_sessions: defaultdict[int, UserSession] = defaultdict(UserSession)
+        self.analyzer = LocalLLMAnalyzer()
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Отправляет приветственное сообщение при вызове команды /start."""
@@ -49,36 +44,31 @@ class TelegramBot:
 
     async def summarize_files(self, file_info_list: list[DocumentInfo], context: ContextTypes.DEFAULT_TYPE) -> str:
         """Заглушка для суммаризации нескольких документов. Будет заменена на реальную суммаризацию."""
-        summaries = []
         downloaded_file_paths = []
         for doc_info in file_info_list:
             try:
-                # Get the file object from Telegram
                 file_object = await context.bot.get_file(doc_info.file_id)
-
-                # Create a temporary directory and file path
-                with tempfile.TemporaryDirectory() as tmpdir:
+                with tempfile.TemporaryDirectory(delete=False) as tmpdir:
                     temp_file_path = pathlib.Path(tmpdir) / doc_info.file_name
-                    
-                    # Download the file to the temporary path
                     await file_object.download_to_drive(custom_path=temp_file_path)
                     logger.info(f"Downloaded file {doc_info.file_name} to {temp_file_path}")
                     downloaded_file_paths.append(str(temp_file_path))
-
-                    # Read the content of the downloaded file (example)
-                    with open(temp_file_path, "rb") as f:
-                        file_content = f.read()
-                        # Here you would integrate your "other tool" to process file_content
-                        # For now, we'll just add a placeholder summary
-                        summaries.append(f"Файл {doc_info.file_name} (ID: {doc_info.file_id}) успешно скачан и прочитан. Размер: {len(file_content)} байт.")
-
             except Exception as e:
-                logger.error(f"Error downloading or processing file {doc_info.file_name} (ID: {doc_info.file_id}): {e}")
-                summaries.append(f"Не удалось обработать файл {doc_info.file_name}. Ошибка: {e}")
+                logger.error(f"Error downloading file {doc_info.file_name} (ID: {doc_info.file_id}): {e}")
+                # Если файл не скачался, добавляем его в список ошибок и продолжаем
+                pass 
         
-        # This part should be replaced with actual summarization logic using the downloaded files
         if downloaded_file_paths:
-            return "\n\n".join(summaries) + "\n\nПредставьте здесь красивое сводное краткое содержание всех файлов!"
+            analyze_result = self.analyzer.analyze(downloaded_file_paths)
+            if analyze_result.file_errors:
+                if analyze_result.summary:
+                    error_files_str = ", ".join(analyze_result.file_errors)
+                    return f"Частичная суммаризация. Ошибки при обработке файлов: {error_files_str}.\n\n{analyze_result.summary}"
+                else:
+                    error_files_str = ", ".join(analyze_result.file_errors)
+                    return f"Ошибки при обработке файлов: {error_files_str}."
+            else:
+                return analyze_result.summary
         else:
             return "Не удалось скачать ни один файл для суммаризации."
 
@@ -90,7 +80,7 @@ class TelegramBot:
         
         if files_to_summarize:
             summary = await self.summarize_files(files_to_summarize, context)
-            await context.bot.send_message(chat_id=chat_id, text=f"Готово!\n\n{summary}")
+            await context.bot.send_message(chat_id=chat_id, text=f"Готово!\n\n{summary}", parse_mode="MarkdownV2")
         
         # Clear the timer for this media group for this user
         if media_group_id in user_session.media_group_timers:
@@ -143,13 +133,13 @@ class TelegramBot:
     def run_bot(self) -> None:
         """Запускает бота."""
         try:
-            config = BotConfig()
+            bot_config = self.config
         except Exception as e:
             logger.error(f"Ошибка при загрузке конфигурации бота: {e}")
             logger.error("Убедитесь, что переменная окружения BOT_TOKEN установлена в файле .env")
             return
 
-        application = Application.builder().token(config.bot_token).build()
+        application = Application.builder().token(bot_config.bot_token).build()
 
         # Register handlers
         application.add_handler(CommandHandler("start", self.start))
@@ -161,7 +151,7 @@ class TelegramBot:
 
 def main():
     """Главная точка входа для запуска бота."""
-    TelegramBot(BotConfig()).run_bot()
+    TelegramBot().run_bot()
 
 if __name__ == "__main__":
     main() 
