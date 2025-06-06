@@ -6,7 +6,7 @@ import base64
 from pydantic import BaseModel, Field, create_model
 import json
 from enum import Enum
-from config import MistralOCRConfig
+from config import MistralConfig
 
 class ImageType(str, Enum):
     GRAPH = "graph"
@@ -37,7 +37,7 @@ class OutModel(BaseModel):
 
 class MistralOCR:
     def __init__(self):
-        self.config = MistralOCRConfig()
+        self.config = MistralConfig()
         self.mistral = Mistral(api_key=self.config.api_key)
 
     def _encode_pdf(self, pdf_path):

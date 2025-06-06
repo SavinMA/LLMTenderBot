@@ -18,7 +18,7 @@ class LocalLLMAnalyzer(DocumentsAnalyzer):
 
         self.model = self.llm_config.model
         self.host = self.llm_config.host
-        self.client = ollama.Client(host=self.host, timeout=30.0)
+        self.client = ollama.Client(host=self.host, timeout=60.0)
         self._check_connection()
 
         self.ocr = MistralOCR()

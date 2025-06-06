@@ -27,8 +27,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy the application code
 COPY src/ ./src/
 COPY setup.py .
-COPY README.md .
 COPY LICENSE .
+COPY README.md .
 
 # Install the application in development mode
 RUN pip install -e .

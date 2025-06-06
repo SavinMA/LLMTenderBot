@@ -8,8 +8,10 @@ import asyncio
 from pydantic import BaseModel, Field
 import tempfile
 import pathlib
-from config import BotConfig
+from config import BotConfig, AnalyzerConfig
+from documents_analyzer import DocumentsAnalyzer
 from mistral_analyzer import MistralAnalyzer
+from local_LLM_analyzer import LocalLLMAnalyzer
 from loguru import logger
 import telegramify_markdown
 
@@ -37,7 +39,13 @@ class TelegramBot:
     def __init__(self):
         self.config = BotConfig()
         self.user_sessions: defaultdict[int, UserSession] = defaultdict(UserSession)
-        self.analyzer = MistralAnalyzer()
+        self.analyzer_config = AnalyzerConfig()
+        if self.analyzer_config.type == "mistral":
+            self.analyzer:DocumentsAnalyzer = MistralAnalyzer()
+        elif self.analyzer_config.type == "ollama":
+            self.analyzer:DocumentsAnalyzer = LocalLLMAnalyzer()
+        else:
+            raise ValueError(f"Неизвестный тип анализатора: {self.analyzer_config.type}")
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Отправляет приветственное сообщение при вызове команды /start."""

@@ -1,6 +1,6 @@
 import os
 from documents_analyzer import DocumentsAnalyzer, AnalyzeResult
-from config import LLMConfig
+from config import MistralConfig
 from ocr.mistral_ocr import MistralOCR
 from prompts import Prompts
 from queries import TenderData
@@ -12,7 +12,7 @@ from mistralai.models import File
 class MistralAnalyzer(DocumentsAnalyzer):
     def __init__(self):
         super().__init__()
-        self.llm_config = LLMConfig()
+        self.llm_config = MistralConfig()
 
         self.model = self.llm_config.model
         self.client = Mistral(api_key=self.llm_config.api_key, timeout_ms=60000)
