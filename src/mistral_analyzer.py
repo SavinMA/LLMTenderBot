@@ -34,11 +34,12 @@ class MistralAnalyzer(DocumentsAnalyzer):
         summaries: list[TenderData] = []
         
         for file_path in file_paths:
+            file_name = os.path.basename(file_path)
             try:
                 summary: TenderData = self._analyze_file(file_path)
                 summaries.append(summary)
             except Exception as e:
-                file_errors.append(file_path)
+                file_errors.append(file_name)
         
         if file_errors:
             logger.error(f"❌ Ошибки при обработке файлов: {file_errors}")
@@ -171,7 +172,21 @@ class MistralAnalyzer(DocumentsAnalyzer):
         if global_summary_content.initial_max_price_with_vat:
             message_parts.append(f"💰 *Начальная максимальная цена (с НДС)*: {global_summary_content.initial_max_price_with_vat}")
         if global_summary_content.contact_persons:
-            message_parts.append(f"👤 *Контактные лица*: {global_summary_content.contact_persons}")
+            contact_persons_info = []
+            for person in global_summary_content.contact_persons:
+                person_details = []
+                if person.full_name:
+                    person_details.append(f"ФИО: {person.full_name}")
+                if person.phone_number:
+                    person_details.append(f"📞 Телефон: {person.phone_number}")
+                if person.email:
+                    person_details.append(f"📧 Email: {person.email}")
+                if person.position:
+                    person_details.append(f"💼 Должность: {person.position}")
+                if person_details:
+                    contact_persons_info.append("(" + ", ".join(person_details) + ")")
+            if contact_persons_info:
+                message_parts.append(f"👤 *Контактные лица*: {'; '.join(contact_persons_info)}")
         if global_summary_content.application_security:
             message_parts.append(f"🔐 *Обеспечение заявки*: {global_summary_content.application_security}")
         if global_summary_content.re_bidding_date:

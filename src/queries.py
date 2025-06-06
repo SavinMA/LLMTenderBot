@@ -1,6 +1,17 @@
 from pydantic import BaseModel
 from pydantic import Field
-from typing import Optional
+from typing import Optional, List
+
+
+class ContactPerson(BaseModel):
+    """
+    Represents the structured data for a contact person.
+    """
+    full_name: Optional[str] = Field(description="ФИО контактного лица", default="")
+    phone_number: Optional[str] = Field(description="Номер телефона контактного лица", default="")
+    email: Optional[str] = Field(description="E-mail контактного лица", default="")
+    position: Optional[str] = Field(description="Должность контактного лица", default="")
+
 
 class TenderData(BaseModel):
     """
@@ -14,7 +25,7 @@ class TenderData(BaseModel):
     lot_names: Optional[str] = Field(description="Наименование лотов", default="")
     delivery_department: Optional[str] = Field(description="Подразделение, куда идет поставка", default="")
     initial_max_price_with_vat: Optional[str] = Field(description="Начальная максимальная цена с НДС", default="")
-    contact_persons: Optional[str] = Field(description="Контактные лица (ФИО, номер телефона, e-mail, должность)", default="")
+    contact_persons: Optional[List[ContactPerson]] = Field(description="Контактные лица", default_factory=list)
     application_security: Optional[str] = Field(description="Обеспечение заявки", default="")
     re_bidding_date: Optional[str] = Field(description="Дата переторжки", default="")
     etp_platform: Optional[str] = Field(description="На какой ЭТП (электронной торговой площадке) размещена закупка?", default="")
