@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -52,11 +53,12 @@ class TelegramBot:
         """Отправляет приветственное сообщение при вызове команды /start."""
         await update.message.reply_text("Привет! Отправьте мне документы для суммаризации.")
 
-    async def summarize_files(self, file_info_list: list[DocumentInfo], context: ContextTypes.DEFAULT_TYPE) -> str:
+    async def summarize_files(self, file_info_list: list[DocumentInfo], context: ContextTypes.DEFAULT_TYPE) -> tuple[str, str]:
         """Заглушка для суммаризации нескольких документов. Будет заменена на реальную суммаризацию."""
         downloaded_file_paths = []
         temp_dirs = [] # Keep track of temporary directories
         result_summary = ""
+        start_time = time.time()
 
         try:
             for doc_info in file_info_list:
@@ -95,7 +97,12 @@ class TelegramBot:
                     logger.info(f"Cleaned up temporary directory: {tmpdir}")
                 except OSError as e:
                     logger.error(f"Error removing temporary directory {tmpdir}: {e}")
-        return result_summary
+
+        end_time = time.time()
+        duration = end_time - start_time
+        duration_string = f"{duration:.2f} секунд"
+
+        return result_summary, duration_string
 
     async def process_media_group(self, context: ContextTypes.DEFAULT_TYPE, user_id: int, media_group_id: str, chat_id: int) -> None:
         """Обрабатывает медиа-группу после получения всех документов для конкретного пользователя."""
@@ -104,10 +111,11 @@ class TelegramBot:
         files_to_summarize = user_session.media_group_documents.pop(media_group_id, [])
         
         if files_to_summarize:
-            summary = await self.summarize_files(files_to_summarize, context)
+            summary, duration_string = await self.summarize_files(files_to_summarize, context)
             if summary:
                 escaped_text = telegramify_markdown.markdownify(summary)
                 await context.bot.send_message(chat_id=chat_id, text=escaped_text, parse_mode="MarkdownV2")
+                await context.bot.send_message(chat_id=chat_id, text=f"Время анализа: {duration_string}")
             else:
                 await context.bot.send_message(chat_id=chat_id, text="Не удалось обработать документ. Пожалуйста, попробуйте еще раз.")
         
@@ -154,10 +162,11 @@ class TelegramBot:
                 # Single document, process immediately
                 logger.info(f"Получен одиночный документ: {file_name} (ID: {file_id}), Пользователь: {user_id}")
                 await update.message.reply_text(f"Обрабатываю ваш документ: {file_name}...")
-                summary = await self.summarize_files([doc_info], context)
+                summary, duration_string = await self.summarize_files([doc_info], context)
                 if summary:
                     escaped_text = telegramify_markdown.markdownify(summary)
                     await context.bot.send_message(chat_id=chat_id, text=escaped_text, parse_mode="MarkdownV2")
+                    await context.bot.send_message(chat_id=chat_id, text=f"Время анализа: {duration_string}")
                 else:
                     await update.message.reply_text("Не удалось обработать документ. Пожалуйста, попробуйте еще раз.")
         else:

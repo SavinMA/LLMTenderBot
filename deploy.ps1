@@ -42,7 +42,7 @@ docker compose -f $ComposeFile down
 
 # Build and start services
 Write-Host "Building and starting services..."
-docker compose -f $ComposeFile up -d
+docker compose -f $ComposeFile up -d --build
 
 # Wait for services to be healthy
 Write-Host "Waiting for services to start..."
