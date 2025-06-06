@@ -165,8 +165,22 @@ class MistralAnalyzer(DocumentsAnalyzer):
             message_parts.append(f"📄 *Номер извещения*: {global_summary_content.notice_number}")
         if global_summary_content.publication_and_submission_deadline:
             message_parts.append(f"🗓️ *Срок подачи заявок*: {global_summary_content.publication_and_submission_deadline}")
-        if global_summary_content.lot_names:
-            message_parts.append(f"🏷️ *Наименование лотов*: {global_summary_content.lot_names}")
+        if global_summary_content.lots:
+            lots_info = []
+            for i, lot in enumerate(global_summary_content.lots):
+                lot_details = []
+                if lot.name:
+                    lot_details.append(f"Наименование: {lot.name}")
+                if lot.initial_max_price:
+                    lot_details.append(f"Начальная максимальная цена: {lot.initial_max_price}")
+                if lot.currency:
+                    lot_details.append(f"Валюта: {lot.currency}")
+                if lot.quantity:
+                    lot_details.append(f"Количество: {lot.quantity}")
+                if lot_details:
+                    lots_info.append(f"Лот {i+1}: (" + ", ".join(lot_details) + ")")
+            if lots_info:
+                message_parts.append(f"🏷️ *Информация о лотах*: {'; '.join(lots_info)}")
         if global_summary_content.delivery_department:
             message_parts.append(f"🚚 *Подразделение поставки*: {global_summary_content.delivery_department}")
         if global_summary_content.initial_max_price_with_vat:

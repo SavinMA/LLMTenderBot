@@ -13,6 +13,16 @@ class ContactPerson(BaseModel):
     position: Optional[str] = Field(description="Должность контактного лица", default="")
 
 
+class LotInfo(BaseModel):
+    """
+    Represents detailed information for a single lot within a tender.
+    """
+    name: Optional[str] = Field(description="Наименование лота", default="")
+    initial_max_price: Optional[str] = Field(description="Начальная максимальная цена лота", default="")
+    currency: Optional[str] = Field(description="Валюта лота", default="")
+    quantity: Optional[str] = Field(description="Количество штук товара в лоте", default="")
+
+
 class TenderData(BaseModel):
     """
     Represents the structured data for a tender, based on the `answers_json` schema.
@@ -22,7 +32,7 @@ class TenderData(BaseModel):
     customer_info_company_name: Optional[str] = Field(description="Информация о заказчике или покупателе (Наименование компании)", default="")
     notice_number: Optional[str] = Field(description="Номер извещения", default="")
     publication_and_submission_deadline: Optional[str] = Field(description="Дата когда вышла закупка и срок окончания подачи: дата и время по мск?", default="")
-    lot_names: Optional[str] = Field(description="Наименование лотов", default="")
+    lots: Optional[List[LotInfo]] = Field(description="Информация о лотах", default_factory=list)
     delivery_department: Optional[str] = Field(description="Подразделение, куда идет поставка", default="")
     initial_max_price_with_vat: Optional[str] = Field(description="Начальная максимальная цена с НДС", default="")
     contact_persons: Optional[List[ContactPerson]] = Field(description="Контактные лица", default_factory=list)
