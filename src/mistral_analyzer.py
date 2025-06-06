@@ -178,11 +178,9 @@ class MistralAnalyzer(DocumentsAnalyzer):
                 if lot.quantity:
                     lot_details.append(f"Количество: {lot.quantity}")
                 if lot_details:
-                    lots_info.append(f"Лот {i+1}:
-  - " + "\n  - ".join(lot_details))
+                    lots_info.append(f"Лот {i+1}: - " + "\n  - ".join(lot_details))
             if lots_info:
-                message_parts.append(f"🏷️ *Информация о лотах*:
-" + "\n".join(lots_info))
+                message_parts.append(f"🏷️ *Информация о лотах*:\n" + "\n".join(lots_info))
         if global_summary_content.delivery_department:
             message_parts.append(f"🚚 *Подразделение поставки*: {global_summary_content.delivery_department}")
         if global_summary_content.initial_max_price_with_vat:
@@ -202,8 +200,7 @@ class MistralAnalyzer(DocumentsAnalyzer):
                 if person_details:
                     contact_persons_info.append("  - " + "\n    - ".join(person_details))
             if contact_persons_info:
-                message_parts.append(f"👤 *Контактные лица*:
-" + "\n".join(contact_persons_info))
+                message_parts.append(f"👤 *Контактные лица*:\n" + "\n".join(contact_persons_info))
         if global_summary_content.application_security:
             message_parts.append(f"🔐 *Обеспечение заявки*: {global_summary_content.application_security}")
         if global_summary_content.re_bidding_date:
